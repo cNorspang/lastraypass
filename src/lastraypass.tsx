@@ -3,7 +3,7 @@ import { execSync } from "child_process"
 
 export default function Command() {
     const { push } = useNavigation();
-    process.env.PATH = process.env.PATH + ':/opt/homebrew/bin' + ':/usr/bin'
+    process.env.PATH = process.env.PATH + ':/opt/homebrew/bin' + ':/usr/bin' + ':/usr/local/bin'
     let passstring = passlistgetter();
 
     let passlist = passstring.split("\n")
