@@ -1,0 +1,79 @@
+import { ActionPanel, List, Form, Action, useNavigation, showHUD, Clipboard, getPreferenceValues} from "@raycast/api"
+import { execSync } from "child_process"
+
+export default function Command() {
+    const { push } = useNavigation();
+    process.env.PATH = process.env.PATH + ':/opt/homebrew/bin' + ':/usr/bin' + ':/usr/local/bin'    
+    console.log(getPreferenceValues().lastpass_username)
+    try {
+        const passlist = passlistgetter();
+        return <ShowPass passlist={passlist}/>
+    }
+
+    catch(e: any){
+        if (e.message.includes("Error: Could not find decryption key. Perhaps you need to login with `lpass login`.")) {
+            push(<Login/>)
+        } 
+    }
+}
+
+function ShowPass(props: {passlist: any}): any {
+    return <List>
+        {props.passlist.map((pass: string, index: number) => (
+            <List.Item title={pass} key={index} actions = {
+                <ActionPanel>
+                    <Action title = "Select" onAction={() => {passgetter(pass)}}/>
+                </ActionPanel>
+            }/>
+        ))}
+    </List>
+}
+
+function passlistgetter(): any {
+    const test = execSync('lpass ls');
+        
+
+            // printer = JSON.stringify(passlist).replace('\\uffffffc3\\uffffffb8/g', 'ø')
+            // printer = printer.replaceAll('\\uffffffc3\\uffffffb8', 'ø')
+            // printer = printer.replaceAll('\\uffffffc3\\uffffffa6', 'æ')
+            // printer = printer.replaceAll('\\uffffffc3\\uffffffa5', 'å')
+            // printer = printer.replaceAll('\\uffffffc3\\uffffff86', 'Æ')
+            // printer = printer.replaceAll('\\uffffffc3\\uffffff98', 'Ø')
+            // printer = printer.replaceAll('\\uffffffc3\\uffffff85', 'Å')
+            //setPasslist(printer)
+        //return temp;
+    return test.toString().split("\n");
+};
+
+function Login() {
+    const { push } = useNavigation()
+    return (
+        <Form actions={
+            <ActionPanel>
+                <Action.SubmitForm title="Submit Password" onSubmit={async (values) => {await lpasslogin(values.passwordField)}}/>
+            </ActionPanel>
+        }>
+            <Form.PasswordField
+                id="passwordField"
+                title="Lastpass Master Password"
+                placeholder="Enter your Lastpass Master Password"
+            />
+        </Form> 
+    )
+}
+
+async function passgetter(passname: string) {
+    const filteredName = passname.substring(passname.indexOf(':') + 2, passname.indexOf(']'))
+    const res = execSync(`lpass show ${filteredName} -j`)
+    const resString = res.toString()
+    const resJSON = JSON.parse(resString);
+    const extracted_pass =resJSON[0].password;
+
+    await Clipboard.copy(extracted_pass);
+    await showHUD("Password copied to clipboard"); //This exits the program, so the PW is copied to the clipboard, and raycast is closed
+}
+
+async function lpasslogin(pass: string){
+    execSync(`echo ${pass} | LPASS_DISABLE_PINENTRY=1 lpass login --trust ${getPreferenceValues().lastpass_username}`);
+    return <ShowPass passlist={passlistgetter()}/>;
+}

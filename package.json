@@ -5,6 +5,7 @@
   "description": "",
   "icon": "command-icon.png",
   "author": "Norspang",
+  "contributors": ["thomas"],
   "license": "MIT",
   "commands": [
     {
@@ -25,6 +26,15 @@
     "prettier": "^2.5.1",
     "typescript": "^4.4.3"
   },
+  "preferences": [
+    {
+      "name": "lastpass_username",
+      "description": "Username used to login to lastpass",
+      "type": "textfield",
+      "required": true,
+      "title": "Lastpass Username"
+    }
+  ],
   "scripts": {
     "build": "ray build -e dist",
     "dev": "ray develop",

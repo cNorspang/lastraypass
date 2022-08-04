@@ -1,61 +1,97 @@
-import { ActionPanel, Icon, List, LocalStorage, Detail, Action, useNavigation} from "@raycast/api"
-import { execSync } from "child_process"
+import { ActionPanel, List, Detail, Action, showToast, Toast, Form, getPreferenceValues } from "@raycast/api";
+import { execSync } from "child_process";
+import { useEffect, useState } from "react";
 
-export default function Command() {
-    const { push } = useNavigation();
-    process.env.PATH = process.env.PATH + ':/opt/homebrew/bin' + ':/usr/bin' + ':/usr/local/bin'
-    let passstring = passlistgetter();
+process.env.PATH = process.env.PATH + ":/opt/homebrew/bin" + ":/usr/bin" + ":/usr/local/bin";
 
-    let passlist = passstring.split("\n")
-    console.log(passstring);
+export function withLogin<T>(Component: React.ComponentType<T>) {
+    return function LoginProvider(props: T) {
+        const [isLoggedIn, setIsLoggedIn] = useState(false);
+        const [isLoading, setIsLoading] = useState(true);
+        useEffect(() => {
+            try {
+                const stdout = execSync("lpass status");
+                const isLoggedIn = !stdout.toString().includes("Not logged in");
+                setIsLoggedIn(isLoggedIn);
+            } catch (e) {
+                //console.error(e);
+            } finally {
+                setIsLoading(false);
+            }
+        }, []);
+
+        if (isLoading) {
+            return <Detail isLoading/>;
+        }
+
+        if (!isLoggedIn && !isLoading) {
+            return <Login onLogin={() => setIsLoggedIn(true)} />;
+        }
+
+        return <Component {...props} />;
+    };
+}
+
+function Login(props: { onLogin: () => void }) {
+    const [isLoading, setIsLoading] = useState(false)
+    function handleSubmit(values: { password: string }) {
+        try {
+            execSync(`echo ${values.password} | LPASS_DISABLE_PINENTRY=1 lpass login --trust ${getPreferenceValues().lastpass_username}`);
+            props.onLogin();
+        } catch (e) {
+            console.error(e);
+            showToast({ style: Toast.Style.Failure, title: "Failed logging in with LastPass" });
+        }
+    }
+
     
-    
 
-    return <List>
-        {passlist.map((pass, index) => (
-            <List.Item title={pass} key={index} actions = {
+    return (
+        <Form
+            actions={
                 <ActionPanel>
-                    <Action title = "Select" onAction={() => {passgetter(pass); push(<Success/>)}}/>
+                    <Action.SubmitForm title="Login" onSubmit={handleSubmit} />
                 </ActionPanel>
-            }/>
-        ))}
-    </List>
+            }>
+            <Form.PasswordField id="password" title="Master Password" placeholder="Enter your Lastpass master password" />
+        </Form>
+
+    );
+
 }
 
- function passlistgetter() {
-    let test;
-    test = execSync('lpass ls');
-    
+function PasswordList() {
+    const [passwords, setPasswords] = useState<string[]>();
+    const [isLoading, setIsLoading] = useState(true);
 
-        // printer = JSON.stringify(passlist).replace('\\uffffffc3\\uffffffb8/g', 'ø')
-        // printer = printer.replaceAll('\\uffffffc3\\uffffffb8', 'ø')
-        // printer = printer.replaceAll('\\uffffffc3\\uffffffa6', 'æ')
-        // printer = printer.replaceAll('\\uffffffc3\\uffffffa5', 'å')
-        // printer = printer.replaceAll('\\uffffffc3\\uffffff86', 'Æ')
-        // printer = printer.replaceAll('\\uffffffc3\\uffffff98', 'Ø')
-        // printer = printer.replaceAll('\\uffffffc3\\uffffff85', 'Å')
-        //setPasslist(printer)
-    //return temp;
-    return test.toString();
-};
+    useEffect(() => {
+        try {
+            const stdout = execSync("lpass ls");
+            const passwords = stdout.toString().split("\n");
+            setPasswords(passwords);
+        } catch (e) {
+            console.error(e);
+            showToast({ style: Toast.Style.Failure, title: "Failed loading passwords" });
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
 
-function passgetter(passname: String) {
-   
-    let filteredName = passname.substring(passname.indexOf(':') + 2, passname.indexOf(']'))
-    let res = execSync(`lpass show ${filteredName} -j`)
-    let resString = res.toString()
-    let resJSON = JSON.parse(resString);
-    let extracted_pass =resJSON[0].password;
-
-    pbcopy(extracted_pass);
+    return (
+        <List isLoading={isLoading}>
+            {passwords?.map((password, index) => (
+                <List.Item
+                    key={index}
+                    title={password}
+                    actions={
+                        <ActionPanel>
+                            <Action.CopyToClipboard content={password} />
+                        </ActionPanel>
+                    }
+                />
+            ))}
+        </List>
+    );
 }
 
-function pbcopy(data: String) {
-    var proc = require('child_process').spawn('pbcopy');
-    proc.stdin.write(data);
-    proc.stdin.end();
-  }
-
-function Success() {
-    return <Detail markdown="Copied to clipboard"/>
-}
+export default withLogin(PasswordList);
