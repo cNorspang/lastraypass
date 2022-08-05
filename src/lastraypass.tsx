@@ -1,4 +1,4 @@
-import { ActionPanel, List, Detail, Action, showToast, Toast, Form, getPreferenceValues } from "@raycast/api";
+import { showHUD, ActionPanel, List, Detail, Action, showToast, Toast, Form, getPreferenceValues, Clipboard } from "@raycast/api";
 import { execSync } from "child_process";
 import { useEffect, useState } from "react";
 
@@ -33,7 +33,6 @@ export function withLogin<T>(Component: React.ComponentType<T>) {
 }
 
 function Login(props: { onLogin: () => void }) {
-    const [isLoading, setIsLoading] = useState(false)
     function handleSubmit(values: { password: string }) {
         try {
             execSync(`echo ${values.password} | LPASS_DISABLE_PINENTRY=1 lpass login --trust ${getPreferenceValues().lastpass_username}`);
@@ -85,13 +84,25 @@ function PasswordList() {
                     title={password}
                     actions={
                         <ActionPanel>
-                            <Action.CopyToClipboard content={password} />
+                            <Action title = "Select" onAction={() => {passgetter(password)}}/>
+                            {/* <Action.CopyToClipboard content={password} /> */}
                         </ActionPanel>
                     }
                 />
             ))}
         </List>
     );
+}
+
+async function passgetter(passname: string) {
+    const filteredName = passname.substring(passname.indexOf(':') + 2, passname.indexOf(']'))
+    const res = execSync(`lpass show ${filteredName} -j`)
+    const resString = res.toString()
+    const resJSON = JSON.parse(resString);
+    const extracted_pass =resJSON[0].password;
+
+    await Clipboard.copy(extracted_pass);
+    await showHUD("Password copied to clipboard"); //This exits the program, so the PW is copied to the clipboard, and raycast is closed
 }
 
 export default withLogin(PasswordList);
