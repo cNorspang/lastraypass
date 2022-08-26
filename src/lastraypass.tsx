@@ -84,7 +84,7 @@ function PasswordList() {
                     title={password}
                     actions={
                         <ActionPanel>
-                            <Action title = "Select" onAction={() => {passgetter(password)}}/>
+                            <Action.Push title={"Test"} target={<PassInfo passname = {password}/>} />
                             {/* <Action.CopyToClipboard content={password} /> */}
                         </ActionPanel>
                     }
@@ -94,15 +94,29 @@ function PasswordList() {
     );
 }
 
-async function passgetter(passname: string) {
+function PassInfo(props: {passname: string}) {
+    const passname = props.passname
     const filteredName = passname.substring(passname.indexOf(':') + 2, passname.indexOf(']'))
     const res = execSync(`lpass show ${filteredName} -j`)
     const resString = res.toString()
     const resJSON = JSON.parse(resString);
     const extracted_pass =resJSON[0].password;
+    const extracted_uname = resJSON[0].username;
+    const extracted_notes = resJSON[0].note;
+    const extracted_url = resJSON[0].url;
 
-    await Clipboard.copy(extracted_pass);
-    await showHUD("Password copied to clipboard"); //This exits the program, so the PW is copied to the clipboard, and raycast is closed
+
+    return (
+      <List> 
+        <List.Item key={"Password"} title={"Password"} actions={<ActionPanel title = "Get Password"><Action title="Select" onAction={() => { Clipboard.copy(extracted_pass); showHUD("Password copied to clipboard")}}/></ActionPanel>}/>
+        <List.Item key={"Username"} title={"Username"} actions={<ActionPanel title="Get Username"><Action title="Select" onAction={() => { Clipboard.copy(extracted_uname); showHUD("Username copied to clipboard")}}/></ActionPanel>}/>
+        <List.Item key={"Notes"} title={"Notes"} actions={<ActionPanel title = "Get Notes"><Action title="Select" onAction={() => {Clipboard.copy(extracted_notes); showHUD("Notes copied to clipboard")}}/></ActionPanel>}/>
+        <List.Item key={"Url"} title={"Url"} actions={<ActionPanel title = "Get Url"><Action title="Select" onAction={() => {Clipboard.copy(extracted_url); showHUD("Url copied to clipboard")}}/></ActionPanel>}/>
+      </List>
+    );
+
+    //await Clipboard.copy(extracted_pass);
+    //await showHUD("Password copied to clipboard"); //This exits the program, so the PW is copied to the clipboard, and raycast is closed
 }
 
 export default withLogin(PasswordList);
